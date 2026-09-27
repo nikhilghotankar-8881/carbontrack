@@ -13,51 +13,55 @@ CATEGORY_ICONS = {
 
 def render_result_card(co2e: float, method: str, data_used: str, factor_info: str, quality: str):
     """
-    Renders the standardized result display card defined in DESIGN.md §6.
+    Renders the standardized result display card with rich visual design.
     """
-    quality_color = "#2e7d32" if quality == "High" else "#ed6c02" # Green for High, Amber for Medium
-    badge_bg = "#e8f5e9" if quality == "High" else "#fff3e0"
+    badge_class = "badge-high" if quality == "High" else "badge-medium"
+    dot_color = "🟢" if quality == "High" else "🟠"
     
     st.markdown(f"""
     <div style="
-        border: 2px solid #e0e0e0; 
-        border-radius: 12px; 
-        padding: 20px; 
-        background-color: #fafafa;
-        margin-top: 15px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid #e2e8f0; 
+        border-radius: 18px; 
+        padding: 24px; 
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+        margin-top: 18px;
+        margin-bottom: 24px;
     ">
-        <div style="font-size: 14px; text-transform: uppercase; color: #666; font-weight: 600; letter-spacing: 0.5px;">Estimated CO₂e Footprint</div>
-        <div style="font-size: 38px; font-weight: 700; color: #1b5e20; margin: 8px 0;">{co2e:.4f} <span style="font-size: 20px; font-weight: 500;">kg CO₂e</span></div>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 12px 0;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #333;">
-            <tr>
-                <td style="padding: 4px 0; color: #666; width: 140px;"><b>Calculation Method:</b></td>
-                <td style="padding: 4px 0;">{method.title()}</td>
-            </tr>
-            <tr>
-                <td style="padding: 4px 0; color: #666;"><b>Data Used:</b></td>
-                <td style="padding: 4px 0;">{data_used}</td>
-            </tr>
-            <tr>
-                <td style="padding: 4px 0; color: #666;"><b>Emission Factor:</b></td>
-                <td style="padding: 4px 0;">{factor_info}</td>
-            </tr>
-            <tr>
-                <td style="padding: 4px 0; color: #666;"><b>Data Quality:</b></td>
-                <td style="padding: 4px 0;">
-                    <span style="
-                        background-color: {badge_bg}; 
-                        color: {quality_color}; 
-                        padding: 3px 10px; 
-                        border-radius: 12px; 
-                        font-weight: 600;
-                        font-size: 13px;
-                        display: inline-block;
-                    ">● {quality}</span>
-                </td>
-            </tr>
-        </table>
+        <div style="font-size: 12px; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.8px;">
+            Estimated CO₂e Footprint
+        </div>
+        <div style="font-size: 40px; font-weight: 800; color: #047857; margin: 8px 0 16px 0; letter-spacing: -1px;">
+            {co2e:.4f} <span style="font-size: 20px; font-weight: 600; color: #334155;">kg CO₂e</span>
+        </div>
+        
+        <div style="
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
+            gap: 12px; 
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #f1f5f9;
+        ">
+            <div>
+                <div style="font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Method</div>
+                <div style="font-size: 14px; font-weight: 600; color: #1e293b; margin-top: 2px;">{method.title()}</div>
+            </div>
+            <div>
+                <div style="font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Data Used</div>
+                <div style="font-size: 14px; font-weight: 600; color: #1e293b; margin-top: 2px;">{data_used}</div>
+            </div>
+            <div>
+                <div style="font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Factor Source</div>
+                <div style="font-size: 14px; font-weight: 600; color: #1e293b; margin-top: 2px;">{factor_info}</div>
+            </div>
+            <div>
+                <div style="font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Data Quality</div>
+                <div style="margin-top: 4px;">
+                    <span class="{badge_class}">{dot_color} {quality} Quality</span>
+                </div>
+            </div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
