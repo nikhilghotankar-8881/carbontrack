@@ -1,0 +1,15 @@
+id,category,activity,unit,factor,method,source,source_year,region
+1,Electricity,Grid Electricity,kWh,0.7160,activity,CEA CO2 Baseline Database v22.0,2023,India
+2,Electricity,Electricity Spend,INR,0.0895,spend,CEA v22.0 / Average Tariff Estimate,2023,India
+3,Fuel,Petrol,litre,2.3100,activity,UK DEFRA / MoPNG India,2023,India
+4,Fuel,Diesel,litre,2.6800,activity,UK DEFRA / MoPNG India,2023,India
+5,Fuel,LPG,kg,2.9800,activity,UK DEFRA Conversion Factors,2023,India
+6,Fuel,Fuel Spend,INR,0.0231,spend,UK DEFRA / Fuel Price Average,2023,India
+7,Transport,Flight Travel,km,0.1500,activity,UK DEFRA Aviation Factors,2023,India
+8,Transport,Car / Cab Travel,km,0.1400,activity,UK DEFRA Vehicle Factors,2023,India
+9,Transport,Transport Spend,INR,0.0200,spend,GHG Protocol EEIO Transport,2023,India
+10,Food,Food Spend,INR,0.0150,spend,GHG Protocol EEIO Food & Agriculture,2023,India
+11,Clothing,Clothing Spend,INR,0.0080,spend,GHG Protocol EEIO Apparel & Textiles,2023,India
+12,Electronics,Electronics Spend,INR,0.0050,spend,GHG Protocol EEIO Consumer Electronics,2023,India
+13,Household,Household Spend,INR,0.0060,spend,GHG Protocol EEIO Household Goods,2023,India
+14,Other,Other Goods Spend,INR,0.0040,spend,GHG Protocol EEIO General Spend,2023,India
