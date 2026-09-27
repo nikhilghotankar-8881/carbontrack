@@ -1,24 +1,36 @@
 import streamlit as st
 from datetime import datetime
+from modules.styles import inject_custom_css, render_hero
 from modules.database import init_db, save_transaction
 from modules.calculator import calculate_activity_emission, calculate_spend_emission
-from modules.validators import validate_amount, validate_quantity, validate_date
+from modules.validators import validate_amount, validate_quantity
 from modules.classifier import classify_text
 from modules.extractor import process_bill_file
 from modules.ui_components import render_result_card, CATEGORY_ICONS
 
-# Ensure database tables exist
+# Ensure database schema exists
 init_db()
 
 st.set_page_config(page_title="Upload & Manual Entry — CarbonTrack", page_icon="📝", layout="wide")
 
-st.title("📝 Add Bill or Manual Entry")
-st.caption("Upload a bill receipt or manually enter transaction details to calculate carbon emissions.")
+# Inject Custom Styling
+inject_custom_css()
 
-tab_manual, tab_bill = st.tabs(["✍️ Manual Entry", "📄 Bill / Receipt Upload"])
+render_hero(
+    title="Add Bill or Manual Entry",
+    subtitle="Upload a bill receipt (PDF/JPG/PNG) or manually log transaction details to calculate carbon emissions.",
+    icon="📝"
+)
+
+tab_manual, tab_bill = st.tabs(["✍️ Manual Transaction Entry", "📄 Bill / Receipt Upload (OCR)"])
 
 with tab_manual:
-    st.subheader("Manual Transaction Entry")
+    st.markdown("""
+    <div style="background: #ffffff; border-radius: 14px; padding: 20px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+        <h4 style="margin: 0 0 4px 0; color: #0f172a;">Manual Transaction Form</h4>
+        <p style="font-size: 13px; color: #64748b; margin: 0;">Enter activity details (e.g. kWh/litres) for Activity-based calculation, or purchase amount for Spend-based calculation.</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     with st.form("manual_entry_form"):
         col1, col2 = st.columns(2)
@@ -39,7 +51,7 @@ with tab_manual:
             quantity_val = st.number_input("Physical Quantity (Optional for Activity-based)", min_value=0.0, step=1.0, value=0.0)
             unit_val = st.text_input("Unit (e.g. kWh, litre, kg, km)", placeholder="kWh")
             
-        submit_btn = st.form_submit_button("🌱 Calculate & Save Transaction", use_container_width=True)
+        submit_btn = st.form_submit_button("🌱 Calculate & Save Transaction", use_container_width=True, type="primary")
 
     if submit_btn:
         valid_amt, amt, amt_err = validate_amount(amount_val)
@@ -95,8 +107,12 @@ with tab_manual:
                 st.error(f"Error performing calculation: {str(e)}")
 
 with tab_bill:
-    st.subheader("Bill / Receipt Extraction & Verification")
-    st.caption("Upload a bill PDF or image scan (JPG/PNG). System extracts details for your verification.")
+    st.markdown("""
+    <div style="background: #ffffff; border-radius: 14px; padding: 20px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+        <h4 style="margin: 0 0 4px 0; color: #0f172a;">Bill & Receipt Processing</h4>
+        <p style="font-size: 13px; color: #64748b; margin: 0;">Upload a bill PDF or receipt photo. Our parser extracts key fields for your verification prior to saving.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     uploaded_bill = st.file_uploader("Upload Bill (PDF, JPG, PNG)", type=["pdf", "jpg", "jpeg", "png"])
 
@@ -110,12 +126,11 @@ with tab_bill:
             st.code(extracted.get("raw_text") or "No text could be extracted.", language="text")
 
         st.markdown("### 🛠️ Verify Extracted Information")
-        st.warning("⚠️ Always review extracted fields before confirming. Missing or low-confidence fields are left editable below.")
+        st.info("⚠️ Always review extracted fields before confirming. Missing or low-confidence fields are left editable below.")
 
         with st.form("verify_bill_form"):
             b_col1, b_col2 = st.columns(2)
 
-            # Default fallback values for form controls
             extracted_date_str = extracted.get("date")
             try:
                 def_date = datetime.strptime(extracted_date_str, "%Y-%m-%d") if extracted_date_str else datetime.today()
@@ -144,11 +159,10 @@ with tab_bill:
                 v_quantity = st.number_input("Physical Quantity (e.g. 185)", min_value=0.0, value=float(extracted.get("quantity") or 0.0), key="b_qty")
                 v_unit = st.text_input("Unit", value=extracted.get("unit") or "kWh", key="b_unit")
 
-            confirm_bill_btn = st.form_submit_button("🌱 Confirm Verification & Save Transaction", use_container_width=True)
+            confirm_bill_btn = st.form_submit_button("🌱 Confirm Verification & Save Transaction", use_container_width=True, type="primary")
 
         if confirm_bill_btn:
             try:
-                # If quantity > 0 -> Activity based
                 if v_quantity > 0:
                     try:
                         res = calculate_activity_emission(

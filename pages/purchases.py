@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from modules.styles import inject_custom_css, render_hero
 from modules.database import init_db, save_transaction
 from modules.validators import validate_csv_columns, validate_date, validate_amount
 from modules.classifier import classify_text
@@ -10,18 +11,37 @@ init_db()
 
 st.set_page_config(page_title="Purchases CSV — CarbonTrack", page_icon="🛒", layout="wide")
 
-st.title("🛒 Online Purchase CSV Import")
-st.caption("Import CSV records from online orders (Amazon, Flipkart, BigBasket, etc.) to estimate spend-based carbon footprint.")
+# Inject Custom Styling
+inject_custom_css()
 
-# Sample CSV download button
-sample_csv = "date,vendor,product,amount\n2026-09-20,Amazon,Cotton T-Shirt,799\n2026-09-21,Flipkart,Wireless Earbuds,1499\n2026-09-22,BigBasket,Weekly Grocery,650\n2026-09-23,Uber,Cab Ride,450"
-
-st.download_button(
-    label="📥 Download Sample Purchase CSV",
-    data=sample_csv,
-    file_name="sample_purchases.csv",
-    mime="text/csv"
+render_hero(
+    title="Online Purchase CSV Import",
+    subtitle="Import order history CSVs from Amazon, Flipkart, BigBasket, etc., to estimate spend-based carbon emissions.",
+    icon="🛒"
 )
+
+# Sample CSV download section
+col_info, col_dl = st.columns([3, 1])
+
+with col_info:
+    st.markdown("""
+    <div style="background: #ffffff; border-radius: 14px; padding: 18px 24px; border: 1px solid #e2e8f0;">
+        <div style="font-weight: 700; color: #0f172a; font-size: 15px;">CSV Requirement</div>
+        <div style="font-size: 13px; color: #64748b; margin-top: 4px;">
+            Required columns: <code>date</code>, <code>vendor</code>, <code>product</code>, <code>amount</code>.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_dl:
+    sample_csv = "date,vendor,product,amount\n2026-09-20,Amazon,Cotton T-Shirt,799\n2026-09-21,Flipkart,Wireless Earbuds,1499\n2026-09-22,BigBasket,Weekly Grocery,650\n2026-09-23,Uber,Cab Ride,450"
+    st.download_button(
+        label="📥 Sample Purchase CSV",
+        data=sample_csv,
+        file_name="sample_purchases.csv",
+        mime="text/csv",
+        use_container_width=True
+    )
 
 st.markdown("---")
 
@@ -37,11 +57,9 @@ if uploaded_file is not None:
         else:
             st.success(f"✅ CSV uploaded successfully! {len(df_raw)} records found.")
             
-            # Normalize column names for internal processing
             df_norm = df_raw.copy()
             df_norm.columns = [c.strip().lower() for c in df_norm.columns]
 
-            # Auto-classify category if not provided
             if 'category' not in df_norm.columns or df_norm['category'].isnull().all():
                 df_norm['category'] = df_norm['product'].apply(classify_text)
 
@@ -50,7 +68,6 @@ if uploaded_file is not None:
 
             category_list = list(CATEGORY_ICONS.keys())
             
-            # Allow inline editing of table
             edited_df = st.data_editor(
                 df_norm[['date', 'vendor', 'product', 'amount', 'category']],
                 column_config={
@@ -79,7 +96,6 @@ if uploaded_file is not None:
                     if cat not in category_list:
                         cat = classify_text(str(row['product']))
 
-                    # Spend-based calculation per row
                     res = calculate_spend_emission(amount=amt_val, category=cat)
 
                     tx_record = {
