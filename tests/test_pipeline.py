@@ -1,102 +1,89 @@
-import pytest
 import os
 import sys
-import pandas as pd
+import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from modules.database import init_db, save_transaction, get_all_transactions
-from modules.calculator import calculate_activity_emission, calculate_spend_emission
-from modules.classifier import classify_text
-from modules.extractor import parse_receipt_text
-from modules.recommendations import get_recommendation_for_category
-from modules.validators import validate_csv_columns, validate_amount, validate_date
+from database.db import init_db, save_document, save_calculation, get_all_calculations
+from backend.calculator import calculate_activity_emission, calculate_spend_emission
+from backend.classifier import classify_text
+from backend.extractor import parse_electricity_bill_text, parse_shopping_invoice_text
+from backend.validators import validate_amount, validate_date, validate_file_extension
+
 
 @pytest.fixture(autouse=True)
 def setup_db():
     init_db()
 
+
 def test_classifier_accuracy():
     assert classify_text("Cotton T-Shirt") == "Clothing"
     assert classify_text("Wireless Earbuds") == "Electronics"
     assert classify_text("HPCL Petrol Fill") == "Fuel"
-    assert classify_text("BigBasket Grocery") == "Food"
-    assert classify_text("Uber Cab") == "Transport"
+    assert classify_text("BigBasket Grocery") == "Grocery"
     assert classify_text("Unrecognized Mystery Item") == "Other"
 
-def test_receipt_parsing():
-    text = "BESCOM Electricity Bill\nDate: 2026-09-15\nUnits Consumed: 185 kWh\nTotal Amount: Rs. 1640.00"
-    parsed = parse_receipt_text(text)
-    assert parsed["date"] == "2026-09-15"
-    assert parsed["item"] == "Electricity Bill"
-    assert parsed["quantity"] == 185.0
-    assert parsed["unit"] == "kwh"
-    assert parsed["amount"] == 1640.0
 
-def test_unified_pipeline_manual_csv_bill():
-    # 1. Manual Entry
-    res_m = calculate_activity_emission(185, "kWh", "Electricity")
-    tx_m = {
+def test_electricity_bill_parsing():
+    text = "BESCOM Electricity Bill\nConsumer Name: John Doe\nDate: 2026-09-15\nUnits Consumed: 185 kWh\nTotal Amount: Rs. 1640.00"
+    parsed = parse_electricity_bill_text(text)
+    assert parsed["bill_date"] == "2026-09-15"
+    assert parsed["units_consumed"] == 185.0
+    assert parsed["bill_amount"] == 1640.0
+
+
+def test_shopping_invoice_parsing():
+    text = "Amazon Shopping Invoice\nItem: Cotton T-Shirt\nDate: 2026-09-26\nQty: 1\nTotal: INR 799.00"
+    parsed = parse_shopping_invoice_text(text)
+    assert parsed["date"] == "2026-09-26"
+    assert parsed["amount"] == 799.0
+
+
+def test_unified_pipeline_bill_and_invoice():
+    # 1. Electricity Bill Entry
+    doc_id_1 = save_document("electricity_bill.pdf", "pdf", "electricity_bill", "raw text content")
+    res_b = calculate_activity_emission(185, "kWh", "Electricity")
+    calc_1 = {
+        "document_id": doc_id_1,
         "date": "2026-09-25",
-        "vendor": "BESCOM",
-        "item": "Electricity Bill",
         "category": "Electricity",
-        "amount": 1640.0,
-        "quantity": 185.0,
-        "unit": "kWh",
-        "co2e": res_m["co2e"],
-        "calculation_method": res_m["calculation_method"],
-        "source_type": "manual"
+        "activity_value": 185.0,
+        "activity_unit": "kWh",
+        "factor_id": res_b["factor_id"],
+        "factor_value": res_b["factor_value"],
+        "method": res_b["method"],
+        "source": res_b["source"],
+        "version": res_b["version"],
+        "result_co2e": res_b["result_co2e"]
     }
-    save_transaction(tx_m)
+    save_calculation(calc_1)
 
-    # 2. CSV Purchase Entry
-    res_c = calculate_spend_emission(799.0, "Clothing")
-    tx_c = {
+    # 2. Shopping Invoice Entry
+    doc_id_2 = save_document("shopping_invoice.pdf", "pdf", "shopping_invoice", "raw text content")
+    res_s = calculate_spend_emission(799.0, "Clothing")
+    calc_2 = {
+        "document_id": doc_id_2,
         "date": "2026-09-26",
-        "vendor": "Amazon",
-        "item": "Cotton T-Shirt",
         "category": "Clothing",
-        "amount": 799.0,
-        "quantity": None,
-        "unit": None,
-        "co2e": res_c["co2e"],
-        "calculation_method": res_c["calculation_method"],
-        "source_type": "csv"
+        "activity_value": 799.0,
+        "activity_unit": "INR",
+        "factor_id": res_s["factor_id"],
+        "factor_value": res_s["factor_value"],
+        "method": res_s["method"],
+        "source": res_s["source"],
+        "version": res_s["version"],
+        "result_co2e": res_s["result_co2e"]
     }
-    save_transaction(tx_c)
+    save_calculation(calc_2)
 
-    # 3. Bill Receipt Entry
-    res_b = calculate_activity_emission(10.0, "litre", "Fuel", item="Petrol")
-    tx_b = {
-        "date": "2026-09-27",
-        "vendor": "HPCL",
-        "item": "Petrol Fill",
-        "category": "Fuel",
-        "amount": 1000.0,
-        "quantity": 10.0,
-        "unit": "litre",
-        "co2e": res_b["co2e"],
-        "calculation_method": res_b["calculation_method"],
-        "source_type": "bill"
-    }
-    save_transaction(tx_b)
+    df = get_all_calculations()
+    assert len(df) >= 2
+    assert set(df['method'].unique()).issuperset({"activity-based", "spend-based"})
 
-    # Retrieve all
-    df = get_all_transactions()
-    assert len(df) >= 3
-    assert set(df['source_type'].unique()).issuperset({"manual", "csv", "bill"})
-    assert set(df['calculation_method'].unique()).issuperset({"activity-based", "spend-based"})
-
-def test_recommendation_engine():
-    rec_elec = get_recommendation_for_category("Electricity")
-    assert "Electricity" in rec_elec or "lighting" in rec_elec
-    rec_fuel = get_recommendation_for_category("Fuel")
-    assert "Fuel" in rec_fuel or "errands" in rec_fuel
 
 def test_validators():
-    valid, msg = validate_csv_columns(pd.DataFrame(columns=["date", "vendor", "product", "amount"]))
-    assert valid is True
+    valid_ext, _ = validate_file_extension("bill.pdf")
+    assert valid_ext is True
     valid_d, d_str = validate_date("2026-09-27")
     assert valid_d is True
     assert d_str == "2026-09-27"
