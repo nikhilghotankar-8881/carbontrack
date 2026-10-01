@@ -13,7 +13,7 @@ def render_upload_bill():
     with col1:
         uploaded_file = st.file_uploader("Choose an electricity bill file", type=["pdf", "jpg", "jpeg", "png"], key="bill_uploader")
     with col2:
-        st.markdown("<br>", unsafe_allow_dict=True)
+        st.markdown("<br>", unsafe_allow_html=True)
         use_sample = st.button("📄 Load Sample Bill", use_container_width=True)
 
     file_to_process = None

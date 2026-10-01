@@ -67,7 +67,7 @@ st.markdown("""
         margin-bottom: 16px;
     }
 </style>
-""", unsafe_allow_dict=True)
+""", unsafe_allow_html=True)
 
 # Initialize Database
 init_db()
@@ -94,7 +94,7 @@ if page == "🏠 Home":
         <h1>🌱 Carbon Footprint Estimator</h1>
         <p>Estimate your CO₂e carbon emissions from electricity bills & online shopping invoices using verified Indian government emission factors.</p>
     </div>
-    """, unsafe_allow_dict=True)
+    """, unsafe_allow_html=True)
 
     c1, c2, c3 = st.columns(3)
 

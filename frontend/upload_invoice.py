@@ -16,7 +16,7 @@ def render_upload_invoice():
     with col1:
         uploaded_file = st.file_uploader("Choose a shopping invoice file", type=["pdf", "jpg", "jpeg", "png"], key="invoice_uploader")
     with col2:
-        st.markdown("<br>", unsafe_allow_dict=True)
+        st.markdown("<br>", unsafe_allow_html=True)
         use_sample = st.button("📄 Load Sample Invoice", use_container_width=True)
 
     file_to_process = None
