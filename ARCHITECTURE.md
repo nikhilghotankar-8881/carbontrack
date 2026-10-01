@@ -2,10 +2,10 @@
 
 *System design only. For pipeline diagrams see `FLOW.md`, for build order see `PHASES.md`, for exact field/schema definitions see `PARAMETERS.md`.*
 
-## 1. Tech stack (locked)
+## 1. Tech Stack (locked)
 
 | Layer | Technology |
-|---|---|
+|-------|-----------|
 | UI / app | Python + Streamlit |
 | Database | SQLite |
 | Data processing | Pandas |
@@ -16,67 +16,91 @@
 
 Deliberately excluded from this stack: React, FastAPI, PostgreSQL, any ML classifier, chatbot layer, mobile app shell, or cloud infrastructure — see `ENHANCEMENTS.md`.
 
-## 2. Folder structure
+## 2. Folder Structure
 
 ```
 carbon-footprint-estimator/
 │
-├── app.py
-├── requirements.txt
+├── app.py                     # Main Streamlit application entrypoint
+├── requirements.txt           # Python dependencies
 ├── README.md
 │
-├── data/
-│   ├── emission_factors.csv
-│   └── category_rules.csv
+├── frontend/                  # Streamlit UI pages
+│   ├── upload.py              # Bill/invoice upload + verification forms
+│   └── dashboard.py           # Analytics dashboard + "How was this calculated?"
 │
-├── database/
-│   └── carbon.db
+├── backend/                   # Core processing logic
+│   ├── calculator.py          # Activity & spend-based CO₂e calculation engine
+│   ├── classifier.py          # Rule-based keyword → category mapper
+│   ├── extractor.py           # PyMuPDF text & Tesseract OCR extraction
+│   └── validators.py          # Input validation helpers
 │
-├── modules/
-│   ├── database.py
-│   ├── calculator.py
-│   ├── classifier.py
-│   ├── extractor.py
-│   ├── recommendations.py
-│   └── validators.py
+├── database/                  # SQLite database + schema
+│   ├── carbon.db
+│   └── db.py                  # All SQLite reads/writes, migrations, seeding
 │
-├── pages/
-│   ├── dashboard.py
-│   ├── upload.py
-│   ├── purchases.py
-│   └── history.py
+├── emission_factors/          # Reference emission factor data
+│   ├── emission_factors.csv   # Cited factors with full metadata (15 fields)
+│   └── category_rules.csv    # Keyword → category mapping rules
 │
-└── sample_data/
-    ├── bills/
-    └── purchases.csv
+├── uploads/                   # User-uploaded bill/invoice files
+│
+├── sample_documents/          # Sample bills and invoices for testing
+│   ├── electricity_bill.pdf
+│   └── shopping_invoice.pdf
+│
+└── tests/                     # Test suite
+    ├── test_calculator.py
+    └── test_pipeline.py
 ```
 
-## 3. Module responsibilities
+## 3. Module Responsibilities
 
 | Module | Responsibility |
-|---|---|
-| `modules/validators.py` | Validate CSV columns, required fields, file types before anything else runs |
-| `modules/extractor.py` | Check if a PDF has embedded text; extract it directly, or fall back to Tesseract OCR for images/scans; parse raw text into structured fields |
-| `modules/classifier.py` | Normalize product/vendor text, match against `category_rules.csv` keywords, fall back to "Other" if nothing matches |
-| `modules/calculator.py` | `calculate_activity_emission()`, `calculate_spend_emission()`, `calculate_total_emission()` — the only place CO₂e math happens |
-| `modules/database.py` | All SQLite reads/writes for `transactions` and `emission_factors` |
-| `modules/recommendations.py` | Rule-based lookup: highest category → matching suggestion string |
-| `pages/upload.py` | Bill/receipt upload UI + extracted-field verification form |
-| `pages/purchases.py` | CSV upload, preview table, confirm-import step |
-| `pages/dashboard.py` | KPI cards, category/daily/monthly Plotly charts, recommendation panel |
-| `pages/history.py` | Transaction table with view/edit/delete |
+|--------|----------------|
+| `backend/extractor.py` | Check if a PDF has embedded text; extract it directly, or fall back to Tesseract OCR for images/scans; parse raw text into structured fields. OCR's only job is to read the document — it never calculates. |
+| `backend/classifier.py` | Normalize product/vendor text, match against `category_rules.csv` keywords, fall back to "Other" if nothing matches |
+| `backend/calculator.py` | `calculate_activity_emission()`, `calculate_spend_emission()` — the only place CO₂e math happens. Returns: activity_value, activity_unit, factor_value, factor_unit, result_co2e, method, source, version |
+| `backend/validators.py` | Validate file types, required fields, and edge cases |
+| `database/db.py` | All SQLite reads/writes for `users`, `documents`, `extracted_items`, `emission_factors`, `calculations` |
+| `frontend/upload.py` | Bill/invoice upload UI + human verification form + result display |
+| `frontend/dashboard.py` | Today/monthly totals, category breakdown, recent calculations, "How was this calculated?" per record |
 
-## 4. Component boundaries — why they're split this way
+## 4. Component Boundaries — Why They're Split This Way
 
-- **Extraction is isolated from calculation.** OCR/PDF parsing only ever produces a *candidate* structured record; it never writes to the database directly. This keeps a bad OCR read from silently corrupting footprint numbers.
+- **Extraction is isolated from calculation.** OCR/PDF parsing only ever produces a *candidate* structured record; it never writes to the database directly or triggers calculation. This keeps a bad OCR read from silently corrupting footprint numbers.
 - **Classification is isolated from calculation.** Category assignment is a lookup step, swappable later (e.g. for a smarter classifier) without touching the emission-factor math.
 - **The calculation engine has no I/O.** `calculator.py` takes numbers in, returns numbers out — this is what makes it independently testable (see `PHASES.md` Phase 3).
-- **The emission-factor table is data, not code.** Nothing in `modules/` hard-codes a factor value; every factor is looked up from `data/emission_factors.csv` / the `emission_factors` table.
+- **The emission-factor table is data, not code.** Nothing in the backend hard-codes a factor value; every factor is looked up from `emission_factors/emission_factors.csv` / the `emission_factors` table. Factors are versioned rather than having one number hard-coded into the application.
 
-## 5. Data stores
+## 5. Data Stores
 
-Three SQLite tables back the whole app: `transactions`, `emission_factors`, `users` (single local user). Full field-by-field definitions live in `PARAMETERS.md`.
+Five SQLite tables back the whole app:
 
-## 6. Single-user assumption
+| Table | Purpose |
+|-------|---------|
+| `users` | Single local user for the prototype |
+| `documents` | Uploaded bill/invoice file records |
+| `extracted_items` | Structured data extracted from documents via OCR |
+| `emission_factors` | Versioned emission factors with full source metadata (15 fields) |
+| `calculations` | Every CO₂e calculation with full metadata (activity, factor, source, version, method, result) |
+
+Full field-by-field definitions live in `PARAMETERS.md`.
+
+## 6. Backend Endpoints (Logical)
+
+The backend should handle these logical operations (implemented as Streamlit functions or future REST endpoints):
+
+| Endpoint | Purpose |
+|----------|---------|
+| `/upload` | Accept bill/invoice file upload |
+| `/extract` | Run OCR/text extraction on uploaded document |
+| `/verify` | Accept user-verified/corrected extracted data |
+| `/factors` | Look up emission factor for a given category |
+| `/calculate` | Run CO₂e calculation using verified data + factor |
+| `/records` | Retrieve saved calculation records |
+| `/dashboard` | Aggregate totals (today, monthly, category breakdown) |
+
+## 7. Single-User Assumption
 
 The prototype assumes one local user and stores no credentials — no auth, OTP, or social login. This is a deliberate architectural simplification, not an oversight; multi-user support is listed in `ENHANCEMENTS.md` if the project ever needs it.

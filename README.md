@@ -1,36 +1,34 @@
 # 🌱 CarbonTrack — Personal Carbon Footprint Estimator
 
-**CarbonTrack** is a hybrid personal CO₂e (carbon dioxide equivalent) footprint estimator. It converts daily utility/fuel bills and online purchase records into a transparent, defensible estimate of your personal carbon footprint.
+**CarbonTrack** is a hybrid personal CO₂e (carbon dioxide equivalent) footprint estimator. It converts electricity bills and online shopping invoices into transparent, defensible estimates of your personal carbon footprint.
 
 ---
 
 ## 🎯 Research Question & Objective
 
-> **Can a person's daily bills and online purchase records be converted into a usable estimate of their personal carbon footprint?**
+> **Can a person's electricity bills and online purchase invoices be converted into a usable estimate of their personal carbon footprint?**
 
 CarbonTrack addresses this by combining two rigorous calculation methodologies defined by the GHG Protocol:
-1. **Activity-based estimation (High Data Quality)**: Used when physical quantity (kWh, litres, kg, km) is available from bills or manual entries.
-2. **Spend-based estimation (Medium Data Quality)**: Used when only monetary purchase amount (₹) is available from online purchase records.
+1. **Activity-based estimation (High Data Quality)**: Used when physical quantity (kWh) is available from electricity bills.
+2. **Spend-based estimation (Medium Data Quality)**: Used when only monetary purchase amount (₹) is available from shopping invoices.
 
 ---
 
 ## 🚀 Key Features
 
-- **📄 Bill & Receipt Upload**: Direct text parsing (PDF) & Tesseract OCR (scanned images/JPG/PNG) for electricity, fuel, and grocery receipts.
-- **🛠️ Verification Form**: Mandatory human-in-the-loop verification step before saving extracted fields.
-- **🛒 Online Purchase CSV Import**: Bulk upload and auto-classify online purchase history (`date, vendor, product, amount`).
-- **✍️ Manual Entry Form**: Flexible fallback for manual transaction inputs.
-- **🏷️ Keyword Classifier**: Automatic mapping of products and vendors to 8 locked categories:
-  `Electricity ⚡`, `Fuel ⛽`, `Transport 🚗`, `Food 🍎`, `Clothing 👕`, `Electronics 📱`, `Household 🏠`, `Other 📦`
-- **📊 Interactive Dashboard**: KPI cards, category breakdown, daily trend line, monthly trend bar, and downloadable CSV report.
-- **🌱 Rule-based Recommendation Engine**: Tailored, actionable carbon reduction tips matched to your highest-emitting category.
-- **📜 Transaction History**: Full CRUD control to view, edit (with live recalculation), or delete past transactions.
+- **📄 Bill & Invoice Upload**: Direct text parsing (PDF) & Tesseract OCR (scanned images/JPG/PNG) for electricity bills and shopping invoices.
+- **🛠️ Human Verification**: Mandatory verification step — user reviews and corrects OCR-extracted fields before calculation.
+- **🏷️ Rule-based Categorization**: Automatic mapping of products and vendors to categories via keyword rules.
+- **⚖️ Dual Methodology**: Activity-based calculation (kWh × factor) for electricity, spend-based (₹ × category factor) for purchases.
+- **🔍 Calculation Transparency**: Every result shows its input, emission factor, formula, source, and version. "How was this calculated?" step-by-step breakdown per record.
+- **📊 Dashboard**: Today's total, monthly total, and category breakdown.
+- **🛡️ Versioned Emission Factors**: Every factor stored with value, unit, source, source_url, year, version, and boundary — never hard-coded.
 
 ---
 
 ## 🏗️ Project Architecture & Tech Stack
 
-- **UI Framework**: Python + Streamlit (Multipage)
+- **UI Framework**: Python + Streamlit
 - **Database**: SQLite (`database/carbon.db`)
 - **Data Engine**: Pandas & Plotly
 - **PDF Extraction**: PyMuPDF (`fitz`)
@@ -38,29 +36,32 @@ CarbonTrack addresses this by combining two rigorous calculation methodologies d
 - **Testing**: Pytest
 
 ```
-carbontrack/
+carbon-footprint-estimator/
 ├── app.py                     # Main Streamlit application entrypoint
 ├── requirements.txt           # Python dependencies
-├── data/                      # Reference datasets
-│   ├── emission_factors.csv   # Cited emission factors with source and year
-│   └── category_rules.csv     # Keyword classification rules
-├── database/                  # SQLite database location
-│   └── carbon.db
-├── modules/                   # Core system logic
-│   ├── database.py            # SQLite database interface & migrations
+│
+├── frontend/                  # Streamlit UI pages
+│   ├── upload.py              # Bill/invoice upload + verification forms
+│   └── dashboard.py           # Analytics dashboard + calculation explanations
+│
+├── backend/                   # Core processing logic
 │   ├── calculator.py          # Activity & spend-based CO₂e calculation engine
-│   ├── classifier.py          # Keyword-based category classifier
-│   ├── extractor.py           # PyMuPDF text & Tesseract OCR receipt parser
-│   ├── recommendations.py     # Rule-based carbon reduction recommendations
-│   ├── validators.py          # Input validation helpers
-│   └── ui_components.py       # Reusable Streamlit UI components
-├── pages/                     # Streamlit multipage views
-│   ├── 1_Upload.py            # Bill upload & manual entry form
-│   ├── 2_Purchases.py         # CSV import & preview table
-│   ├── 3_Dashboard.py         # Analytics dashboard & insights
-│   └── 4_History.py           # Transaction history CRUD
-├── sample_data/               # Sample testing datasets
-│   └── purchases.csv
+│   ├── classifier.py          # Rule-based keyword → category mapper
+│   ├── extractor.py           # PyMuPDF text & Tesseract OCR extraction
+│   └── validators.py          # Input validation helpers
+│
+├── database/                  # SQLite database + schema
+│   ├── carbon.db
+│   └── db.py                  # SQLite interface & migrations
+│
+├── emission_factors/          # Reference emission factor data
+│   ├── emission_factors.csv   # Cited factors with full metadata (15 fields)
+│   └── category_rules.csv    # Keyword → category mapping rules
+│
+├── uploads/                   # User-uploaded bill/invoice files
+│
+├── sample_documents/          # Sample bills and invoices for testing
+│
 └── tests/                     # Unit & integration test suite
     ├── test_calculator.py
     └── test_pipeline.py
@@ -72,7 +73,7 @@ carbontrack/
 
 ### 1. Prerequisites
 - Python 3.10+
-- Tesseract OCR engine (Optional for scanned image OCR)
+- Tesseract OCR engine (required for scanned image OCR)
 
 ### 2. Setup Instructions
 
@@ -114,10 +115,25 @@ pytest
 
 ## 📊 Citation & Emission Factor Methodology
 
-Every emission factor used in CarbonTrack is stored with value, unit, method, region, source, and year:
-- **Grid Electricity (India)**: Central Electricity Authority (CEA) CO₂ Baseline Database v22.0 (0.7160 kg CO₂e / kWh).
-- **Fuel & Activity Factors**: UK DEFRA Conversion Factors & India MoPNG guidelines.
+Every emission factor used in CarbonTrack is stored with value, unit, method, country, region, source, source_url, year, version, boundary, and is_active flag:
+- **Grid Electricity (India)**: Central Electricity Authority (CEA) CO₂ Baseline Database (0.7160 kg CO₂e / kWh).
+- **Fuel & Activity Factors**: BEE / MoEFCC guidelines, UK DEFRA Conversion Factors & India MoPNG guidelines.
+- **Transport Factors**: India GHG Program.
 - **Spend-based EEIO Factors**: GHG Protocol EEIO Industry Average spend factors per category.
+
+---
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| `PRD.md` | Product requirements — scope, objectives, acceptance criteria |
+| `ARCHITECTURE.md` | System design — tech stack, folder structure, module responsibilities |
+| `DESIGN.md` | Screen-by-screen UI/UX specification |
+| `FLOW.md` | Pipeline diagrams — all data flows and processing steps |
+| `PARAMETERS.md` | Data dictionary — every field, table, and schema definition |
+| `PHASES.md` | Build roadmap — phase-by-phase development order |
+| `ENHANCEMENTS.md` | Explicitly out-of-scope features and future ideas |
 
 ---
 
