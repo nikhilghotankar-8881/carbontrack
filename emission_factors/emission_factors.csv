@@ -1,0 +1,11 @@
+id,category,activity_type,unit,factor_value,factor_unit,country,region,source,source_url,year,version,boundary,is_active
+1,Electricity,Grid Electricity,kWh,0.727,kg CO₂e/kWh,India,National,Central Electricity Authority (CEA),https://cea.nic.in,2024,v20.0,Scope 2,1
+2,Fuel,Petrol,litre,2.16,kg CO₂e/litre,India,National,IPCC / India GHG Program,https://indiaghgp.org,2023,IPCC 2006,Scope 1,1
+3,Fuel,Diesel,litre,2.68,kg CO₂e/litre,India,National,IPCC / India GHG Program,https://indiaghgp.org,2023,IPCC 2006,Scope 1,1
+4,Fuel,LPG,kg,2.98,kg CO₂e/kg,India,National,UK DEFRA Conversion Factors,https://gov.uk/defra,2024,DEFRA 2024,Scope 1,1
+5,Electricity,Electricity Spend,INR,0.0900,kg CO₂e/INR,India,National,CEA / Average Tariff Estimate,https://cea.nic.in,2024,v20.0,Scope 2,1
+6,Fuel,Fuel Spend,INR,0.0230,kg CO₂e/INR,India,National,DEFRA / Fuel Price Average,https://gov.uk/defra,2024,DEFRA 2024,Scope 1,1
+7,Grocery,Food & Grocery Spend,INR,0.0150,kg CO₂e/INR,Global,Global,GHG Protocol EEIO,https://ghgprotocol.org,2023,EEIO v1,Cradle-to-shelf,1
+8,Clothing,Apparel & Textiles Spend,INR,0.0080,kg CO₂e/INR,Global,Global,GHG Protocol EEIO,https://ghgprotocol.org,2023,EEIO v1,Cradle-to-gate,1
+9,Electronics,Consumer Electronics Spend,INR,0.0050,kg CO₂e/INR,Global,Global,GHG Protocol EEIO,https://ghgprotocol.org,2023,EEIO v1,Cradle-to-gate,1
+10,Other,General Consumer Spend,INR,0.0040,kg CO₂e/INR,Global,Global,GHG Protocol EEIO,https://ghgprotocol.org,2023,EEIO v1,Cradle-to-gate,1
