@@ -122,7 +122,7 @@ def init_db():
 def get_all_emission_factors():
     """Retrieves all active emission factors as a DataFrame."""
     conn = get_connection()
-    df = pd.read_sql_query("SELECT * FROM emission_factors WHERE is_active = 1", conn)
+    df = pd.read_sql_query("SELECT * FROM emission_factors WHERE is_active = 1 ORDER BY id ASC", conn)
     conn.close()
     return df
 
@@ -212,7 +212,6 @@ def save_extracted_items(document_id, items_dict, confidence=1.0):
     """Saves key-value field extractions for a document."""
     conn = get_connection()
     cursor = conn.cursor()
-    # Remove old extractions for this document if re-running
     cursor.execute("DELETE FROM extracted_items WHERE document_id = ?", (document_id,))
     for field_name, value in items_dict.items():
         val_str = str(value) if value is not None else ""
@@ -222,6 +221,20 @@ def save_extracted_items(document_id, items_dict, confidence=1.0):
         """, (document_id, field_name, val_str, val_str, confidence))
     conn.commit()
     conn.close()
+
+
+def get_extracted_items(document_id):
+    """Retrieves extracted items dictionary for a given document."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT field_name, extracted_value, verified_value, confidence
+        FROM extracted_items
+        WHERE document_id = ?
+    """, (document_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return {row["field_name"]: row["verified_value"] or row["extracted_value"] for row in rows}
 
 
 def update_verified_items(document_id, verified_dict):
@@ -272,12 +285,15 @@ def save_calculation(calc_dict):
 
 
 def get_all_calculations():
-    """Retrieves all calculations ordered by date DESC."""
+    """Retrieves all calculations ordered by date DESC with document & emission factor metadata."""
     conn = get_connection()
     df = pd.read_sql_query("""
-        SELECT c.*, ef.factor_unit, ef.source_url
+        SELECT c.*, 
+               ef.factor_unit, ef.source_url, ef.boundary, ef.country, ef.region, ef.activity_type,
+               d.filename, d.document_type, d.status as doc_status
         FROM calculations c
         LEFT JOIN emission_factors ef ON c.factor_id = ef.id
+        LEFT JOIN documents d ON c.document_id = d.id
         ORDER BY c.date DESC, c.id DESC
     """, conn)
     conn.close()
@@ -285,15 +301,32 @@ def get_all_calculations():
 
 
 def get_calculation_by_id(calc_id):
-    """Retrieves a single calculation record by ID with emission factor metadata."""
+    """Retrieves a single calculation record by ID with full document & emission factor metadata."""
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT c.*, ef.factor_unit, ef.source_url, ef.boundary, ef.country, ef.region, ef.activity_type
+        SELECT c.*, 
+               ef.factor_unit, ef.source_url, ef.boundary, ef.country, ef.region, ef.activity_type,
+               d.filename, d.document_type, d.status as doc_status, d.raw_text
         FROM calculations c
         LEFT JOIN emission_factors ef ON c.factor_id = ef.id
+        LEFT JOIN documents d ON c.document_id = d.id
         WHERE c.id = ?
     """, (calc_id,))
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None
+
+
+def get_documents_list():
+    """Retrieves all uploaded document records."""
+    conn = get_connection()
+    df = pd.read_sql_query("""
+        SELECT d.*, COUNT(c.id) as calculation_count, SUM(c.result_co2e) as total_co2e
+        FROM documents d
+        LEFT JOIN calculations c ON d.id = c.document_id
+        GROUP BY d.id
+        ORDER BY d.upload_date DESC, d.id DESC
+    """, conn)
+    conn.close()
+    return df
